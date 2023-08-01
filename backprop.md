@@ -41,7 +41,7 @@ o = n.tanh()
 
 # performing the operations
 
-## building the topological graph
+## Topological Sort via Depth First Search
 When we call o.backward(), first we call build_topo(o)
 
 topo = []
@@ -64,3 +64,4 @@ visited = ()
 * Finally we can add n, and then o to topo.topo = [w1, x1, w1x1, w2, x2, w2x2, n, o]
 
 After this, its quite clear. You reverse topo, and find the gradient of each element in topo in that order
+
