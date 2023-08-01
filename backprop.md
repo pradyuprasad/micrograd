@@ -5,7 +5,7 @@
 
 Recall our function from micrograd:
 
-'''
+
 
     def backward(self):
         topo = []
@@ -28,7 +28,7 @@ Recall our function from micrograd:
 
 
 
-'''
+
 
 ## Defining the example
 
