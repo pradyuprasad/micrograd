@@ -1,4 +1,3 @@
-# Incomplete, Works in Progress
 
 
 # How does topological sort work?
