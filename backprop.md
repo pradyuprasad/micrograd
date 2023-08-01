@@ -33,12 +33,13 @@ Recall our function from micrograd:
 ## Defining the example
 
 Lets say we have 2 variables (x1, x2) and 2 weights (w1, w2).
-
+~~~
 w1x1 = x1 * w1 and x2 = x2 * w2
 
 n := w1x1 + w2x2. 
 
 o: tanh(n)
+~~~
 ----
 
 ## Calling backward
