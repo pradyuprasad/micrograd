@@ -73,6 +73,7 @@ topo = [w1]
 
 now we go to x1[^1]
 
+<<<<<<< HEAD
 
 for x1
 visited = (o, n, w1x1, w1, x1)
@@ -87,5 +88,8 @@ topo = [w1, x1, w1x1]
 Recall that w1x1 was a child of n, and we are yet to loop over the children of w2x2. I'll save you the details and just give you the values of topo and visited
 
 [^1]: Why do we go back to x1? Recall that build_topo(w1) is called *inside* build_topo(w1x1). So when this function terminates, we move to the next child in "for child in v._prev"
+=======
+[^1] testing
+>>>>>>> parent of ad3095b (Update backprop.md)
 
 
