@@ -87,7 +87,7 @@ class Value:
         return out
     
 
-    #backprop with topological sort
+    #backprop with topological sort. See backprop.md for detailed example with an example
     def backward(self):
         topo = []
         visited = set()
