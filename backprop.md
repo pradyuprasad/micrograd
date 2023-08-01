@@ -62,3 +62,5 @@ visited = ()
 * Now, we repeat that for w2x2. I'll save you the details and give you the final values of visited and topo. visited = (o, n, w1x1, w1, x1, w2, x2, w2x2). topo = [w1, x1, w1x1, w2, x2, w2x2]
 
 * Finally we can add n, and then o to topo.topo = [w1, x1, w1x1, w2, x2, w2x2, n, o]
+
+After this, its quite clear. You reverse topo, and find the gradient of each element in topo in that order
