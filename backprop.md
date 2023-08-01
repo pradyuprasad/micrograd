@@ -34,6 +34,6 @@ w1._prev is empty
 
 now we go to x1[^1]
 
-[^1]: testing
+[^1] testing
 
 
