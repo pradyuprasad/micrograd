@@ -1,159 +1,198 @@
 import math
 import random
-from typing import Any
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 # Basic unit of operations
 class Value:
-    def __init__(self, data, _children=()):
-        self.data = data
-        self._prev = set(_children)
-        self.grad = 0.0
-        self._backward = lambda: None
+  
+  def __init__(self, data, _children=(), _op='', label=''):
+    self.data = data
+    self.grad = 0.0
+    self._backward = lambda: None
+    self._prev = set(_children)
+    self._op = _op
+    self.label = label
 
-    def __repr__(self):
-        return f"Value({self.data})"
+  def __repr__(self):
+    return f"Value(data={self.data})"
+  
+  def __add__(self, other):
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data + other.data, (self, other), '+')
     
-    # addition
-    def __add__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data + other.data, (self, other))
-
-        def _backward():
-            self.grad +=  out.grad
-            other.grad +=  out.grad
-        
-        self._backward = _backward
-        return out
+    def _backward():
+      self.grad += 1.0 * out.grad
+      other.grad += 1.0 * out.grad
+    out._backward = _backward
     
+    return out
 
-    # subtraction
-    def __sub__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data - other.data, (self, other)) 
-        def _backward():
-            self.grad +=  +out.grad
-            other.grad +=  -out.grad
-        
-        self._backward = _backward      
-        return out 
-
-
-    # multiplication
-    def __mul__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data * other.data, (self, other))
-
-        def _backward():
-            self.grad +=  other.data * out.grad
-            other.grad += self.data * out.grad
-        
-        self._backward = _backward
-        return out
+  def __mul__(self, other):
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data * other.data, (self, other), '*')
     
+    def _backward():
+      self.grad += other.data * out.grad
+      other.grad += self.data * out.grad
+    out._backward = _backward
+      
+    return out
+  
+  def __pow__(self, other):
+    assert isinstance(other, (int, float)), "only supporting int/float powers for now"
+    out = Value(self.data**other, (self,), f'**{other}')
 
-    #division
-    def __truediv__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
-        if other.data != 0:
-            out = Value(self.data/ other.data, (self, other))
-            return out
-        else:
-            raise ZeroDivisionError("Dividing by zero!")
-        
+    def _backward():
+        self.grad += other * (self.data ** (other - 1)) * out.grad
+    out._backward = _backward
 
+    return out
+  
+  def __rmul__(self, other): # other * self
+    return self * other
 
+  def __truediv__(self, other): # self / other
+    return self * other**-1
 
+  def __neg__(self): # -self
+    return self * -1
 
-    # exponent
-    def __pow__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data ** other.data, (self, other))
+  def __sub__(self, other): # self - other
+    return self + (-other)
 
-        def _backward():
-            self.grad += (other.data * self.data ** (other.data -1)) * out.grad
-        out._backward = _backward
+  def __radd__(self, other): # other + self
+    return self + other
 
-        return out
+  def tanh(self):
+    x = self.data
+    t = (math.exp(2*x) - 1)/(math.exp(2*x) + 1)
+    out = Value(t, (self, ), 'tanh')
     
-
-    #tanh (activation function)
-    def tanh(self):
-        s = self.data
-        t = (math.exp(2*s) -1)/(math.exp(2*s) + 1)
-        out = Value(t, (self, )) 
-
-        def _backward():
-            self.grad += (1 - t**2) * out.grad
-
-        out._backward = _backward
-        return out
+    def _backward():
+      self.grad += (1 - t**2) * out.grad
+    out._backward = _backward
     
-
-    #backprop with topological sort. See backprop.md for detailed example with an example
-    def backward(self):
-        topo = []
-        visited = set()
-
-        def build_topo(v):
-            
-            if v not in visited:
-                visited.add(v)
-                for child in v._prev:
-                    build_topo(child)
-                topo.append(v)
-                print("topo is", topo)
-        
-        build_topo(self)
-
-        self.grad = 1.0
-        for node in reversed(topo):
-            node._backward()
-
-
+    return out
+  
+  def exp(self):
+    x = self.data
+    out = Value(math.exp(x), (self, ), 'exp')
+    
+    def _backward():
+      self.grad += out.data * out.grad # NOTE: in the video I incorrectly used = instead of +=. Fixed here.
+    out._backward = _backward
+    
+    return out
+  
+  
+  def backward(self):
+    
+    topo = []
+    visited = set()
+    def build_topo(v):
+      if v not in visited:
+        visited.add(v)
+        for child in v._prev:
+          build_topo(child)
+        topo.append(v)
+    build_topo(self)
+    
+    self.grad = 1.0
+    for node in reversed(topo):
+      node._backward()
 
 #Foward pass of a MLP
-class Neuron:
-    # The Neuron class implements one matrix multiplication. Tanh(Weights times data + bias). 
-    def __init__(self, nin): #nin is the size of the input
-        self.w = [Value(random.uniform(-1, 1)) for i in range(nin)]
-        self.b = Value(random.uniform(-1, 1))
-    
-    def __call__(self, x) -> Any:
-        if len(x) != len(self.w):
-            raise ValueError("length of x is not the same as input to Neuron")
-        else: 
-            n = sum((wi*xi for wi, xi in zip(self.w, x)), self.b)
-            out = n.tanh()
-            return out
 
+class Neuron:
+  
+  def __init__(self, nin):
+    self.w = [Value(random.uniform(-1,1)) for _ in range(nin)]
+    self.b = Value(random.uniform(-1,1))
+  
+  def __call__(self, x):
+    # w * x + b
+    act = sum((wi*xi for wi, xi in zip(self.w, x)), self.b)
+    out = act.tanh()
+    return out
+  
+  def parameters(self):
+    return self.w + [self.b]
 
 class Layer:
-    def __init__(self, nin, nout): #nin is the length of x. nout is the number of neurons we want in this layer
-        self.neurons = [Neuron(nin) for _ in range(nout)] #make a list of "nout" Neurons each having nin variables
-    def __call__(self, x):
-        #out put the forward pass of each neuron as a list
-        out = [n(x) for n in self.neurons]
-        return out
+  
+  def __init__(self, nin, nout):
+    self.neurons = [Neuron(nin) for _ in range(nout)]
+  
+  def __call__(self, x):
+    outs = [n(x) for n in self.neurons]
+    return outs[0] if len(outs) == 1 else outs
+  
+  def parameters(self):
+    return [p for neuron in self.neurons for p in neuron.parameters()]
 
 class MLP:
-    def __init__(self, nin, nouts):#nin is the size of the input. nouts is a list of the *number* of neurons in each layer
-        size = [nin] + nouts
-        self.MLP = [Layer(size[i], size[i+1]) for i in range(len(size)-1)] # we make layers of each consecutive combination in size
+  
+  def __init__(self, nin, nouts):
+    sz = [nin] + nouts
+    self.layers = [Layer(sz[i], sz[i+1]) for i in range(len(nouts))]
+  
+  def __call__(self, x):
+    for layer in self.layers:
+      x = layer(x)
+    return x
+  
+  def parameters(self):
+    return [p for layer in self.layers for p in layer.parameters()]
 
-    def __call__(self, x):
-        for n in self.MLP:
-            x = n(x) #we start with the input. then we apply each layer to x resulting in the answer 
-        return x
+x = [3, 4, 5]
+n = MLP(3, [1])
+n(x)
+
+xs = [
+  [2.0, 3.0, -1.0],
+  [3.0, -1.0, 0.5],
+  [0.5, 1.0, 1.0],
+  [1.0, 1.0, -1.0],
+]
+ys = [1.0, -1.0, -1.0, 2.0] # desired targets
+
+ypred = [n(x) for x in xs]
 
 
-x = [2.0, 3.0, -1.0, 90]
-n = MLP(len(x), [4, 4, 1])
-print(n(x))
+loss = sum(((yout - ygt))**2 for ygt, yout in zip(ys, ypred))
 
 
 
+xs = [
+  [2.0, 3.0, -1.0],
+  [3.0, -1.0, 0.5],
+  [0.5, 1.0, 1.0],
+  [1.0, 1.0, -1.0],
+]
+ys = [1.0, -1.0, -1.0, 2.0] # desired targets
 
 
+losses = []
+for k in range(500):
+  
+  # forward pass
+    ypred = [n(x) for x in xs]
+    loss = sum((yout - ygt)**2 for ygt, yout in zip(ys, ypred))
+    losses.append(loss.data)
+  
+  # backward pass
+    for p in n.parameters():
+        p.grad = 0.0
+    loss.backward()
+  
+  # update
+    for p in n.parameters():
+        p.data += -1 * p.grad
+    
 
-
-
+print(loss)
+xvals = [i for i in range(len(losses))]
+plt.plot(xvals, losses)
+plt.show()
